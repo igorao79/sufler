@@ -20,7 +20,7 @@ const config: ExpoConfig = {
     appleTeamId: APPLE_TEAM_ID,
     // App Store Connect rejects a re-upload of a build number it has already seen, so this has
     // to be bumped for every upload of the same `version`.
-    buildNumber: '2',
+    buildNumber: '3',
     supportsTablet: false,
     infoPlist: {
       // Required by AVPictureInPictureController: without it the PiP window will not open when the
@@ -31,12 +31,19 @@ const config: ExpoConfig = {
         'Sufler слушает вашу речь, чтобы прокручивать текст в такт тому, что вы говорите.',
       NSSpeechRecognitionUsageDescription:
         'Распознавание речи нужно, чтобы находить ваше место в тексте и вести суфлёр за вами.',
-      // Required by App Store validation, not by the app: react-native-reanimated links
-      // CoreMotion for its useAnimatedSensor API, and Apple's check looks at what the binary
-      // references rather than at what it calls. Sufler never requests motion data, so this
-      // dialog is never shown — the string says so rather than inventing a purpose.
+      // The two below are required by App Store validation rather than by the app itself.
+      // Apple's check looks at what the linked binaries *reference*, not at what they call, so a
+      // dependency is enough to demand a string. Neither dialog is ever shown, because Sufler
+      // never requests either permission — so the strings say that rather than inventing a
+      // purpose. Run `scripts/check-purpose-strings.sh` against an archive to catch new ones.
+      //
+      // react-native-reanimated links CoreMotion for useAnimatedSensor.
       NSMotionUsageDescription:
         'Sufler не использует датчики движения и не запрашивает к ним доступ.',
+      // expo-file-system links Photos for its media-capable file picking API. Sufler imports
+      // only .txt and .md, through expo-document-picker.
+      NSPhotoLibraryUsageDescription:
+        'Sufler не обращается к медиатеке и не запрашивает к ней доступ — импортируются только текстовые файлы.',
       ITSAppUsesNonExemptEncryption: false,
     },
     entitlements: {

@@ -188,7 +188,17 @@ Portal, иначе `containerURL(forSecurityApplicationGroupIdentifier:)` вер
 ```bash
 npm run lint                  # tsc --noEmit
 ./scripts/check-aligner.sh    # алгоритм следования на смоделированной расшифровке
+
+# перед каждой загрузкой в App Store Connect, по собранному архиву:
+./scripts/check-purpose-strings.sh <path>.xcarchive
 ```
+
+`check-purpose-strings.sh` обходит все Mach-O внутри бандла — приложение, расширение и каждый
+фреймворк — и сверяет privacy-чувствительные API, на которые они *ссылаются*, с ключами
+`NS*UsageDescription` в `Info.plist`. Валидация Apple смотрит именно на ссылки, а не на вызовы,
+поэтому хватает одной зависимости несколькими уровнями ниже: `expo-file-system` линкует `Photos`,
+`react-native-reanimated` — `CoreMotion`, хотя приложение не трогает ни то, ни другое. Узнавать об
+этом из письма-отказа стоит одной загрузки и одного номера билда каждый раз.
 
 `check-aligner.sh` компилирует `Aligner`, `ScriptModel` и `TextNormalizer` отдельно (они зависят
 только от Foundation) и прогоняет их против набора случаев: дословное чтение, слова-филлеры, число
