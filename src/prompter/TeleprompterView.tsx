@@ -42,7 +42,7 @@ export function TeleprompterView({ lines, position, fontSize, lineHeight, mirror
   const containerHeight = useSharedValue(0);
   const lineOffsets = useSharedValue<number[]>([]);
   const offsetsRef = useRef<number[]>([]);
-  const measuredCount = useRef(0);
+  const measuredRef = useRef<Set<number>>(new Set());
 
   // Mirrored into React state so the active line can render word spans. A line changes every few
   // seconds, so this re-render is cheap — unlike the token index, which must never get here.
@@ -67,31 +67,53 @@ export function TeleprompterView({ lines, position, fontSize, lineHeight, mirror
 
   const onLineLayout = useCallback(
     (index: number, y: number) => {
+      if (offsetsRef.current[index] === y && measuredRef.current.has(index)) return;
       offsetsRef.current[index] = y;
-      measuredCount.current += 1;
-      if (measuredCount.current >= lines.length) {
-        lineOffsets.value = [...offsetsRef.current];
-      }
+      measuredRef.current.add(index);
+      // Publish every time rather than waiting for a full set. Lines re-lay out whenever one
+      // becomes active, so a plain counter over-counts, and gating on it risks the opposite —
+      // offsets that are never published at all, which reads to the user as a teleprompter that
+      // highlights words but refuses to scroll.
+      lineOffsets.value = [...offsetsRef.current];
     },
-    [lineOffsets, lines.length],
+    [lineOffsets],
   );
 
   // Reset measurement bookkeeping whenever the layout inputs change.
   useMemo(() => {
     offsetsRef.current = new Array(lines.length).fill(0);
-    measuredCount.current = 0;
+    measuredRef.current = new Set();
     lineOffsets.value = [];
   }, [lines, fontSize, lineHeight, lineOffsets]);
 
+  // Word counts per line, so the worklet can turn a word index into a fraction of a line.
+  const wordsPerLine = useSharedValue<number[]>([]);
+  useMemo(() => {
+    wordsPerLine.value = lines.map((line) => line.split(/\s+/).filter(Boolean).length);
+  }, [lines, wordsPerLine]);
+
+  // Interpolate *within* the line using how far through it the speaker is.
+  //
+  // Targeting the line's own offset means the view sits still for every word of a line and then
+  // jumps a whole line at once — which is exactly the lurching the eye notices most. Blending
+  // toward the next line's offset in proportion to the word index turns the same information into
+  // continuous motion, without needing per-word measurement.
   const targetY = useDerivedValue(() => {
     const offsets = lineOffsets.value;
     if (offsets.length === 0) return 0;
+
     const index = Math.min(Math.max(position.lineIndex.value, 0), offsets.length - 1);
-    return Math.max(0, offsets[index] - containerHeight.value * EYE_LINE);
+    const current = offsets[index];
+    const next = index + 1 < offsets.length ? offsets[index + 1] : current;
+
+    const words = Math.max(wordsPerLine.value[index] ?? 1, 1);
+    const progress = Math.min(Math.max(position.indexInLine.value, 0), words) / words;
+
+    return Math.max(0, current + (next - current) * progress - containerHeight.value * EYE_LINE);
   });
 
   const scrollY = useDerivedValue(() =>
-    withTiming(targetY.value, { duration: 320, easing: Easing.out(Easing.cubic) }),
+    withTiming(targetY.value, { duration: 260, easing: Easing.out(Easing.cubic) }),
   );
 
   const contentStyle = useAnimatedStyle(() => ({

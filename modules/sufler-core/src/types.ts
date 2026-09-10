@@ -57,6 +57,24 @@ export type PiPStyle = {
 };
 
 export type PiPState = { active: boolean; possible: boolean };
+
+export type PiPDiagnostics = {
+  supported: boolean;
+  possible: boolean;
+  active: boolean;
+  hasController: boolean;
+  hasLayer: boolean;
+  sourceInWindow: boolean;
+  sourceSize: string;
+  following: boolean;
+  /** Total frames handed to the display layer since launch. Flat means nothing is being drawn. */
+  framesEnqueued: number;
+  renderWidth: number;
+  renderHeight: number;
+  /** Current pump rate: 30 while moving, 1 while idle, 0 when stopped. */
+  clockHz: number;
+  rendererError: string;
+};
 export type PiPPlaybackToggled = { playing: boolean };
 export type SuflerError = { code: string; message: string };
 

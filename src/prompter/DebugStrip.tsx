@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { SuflerSpeech, type TranscriptEvent } from '../../modules/sufler-core';
+import {
+  SuflerPiP,
+  SuflerSpeech,
+  type PiPDiagnostics,
+  type TranscriptEvent,
+} from '../../modules/sufler-core';
 import { theme } from '../ui/theme';
 
 /**
@@ -16,6 +21,7 @@ import { theme } from '../ui/theme';
  */
 export function DebugStrip() {
   const [event, setEvent] = useState<TranscriptEvent | null>(null);
+  const [pip, setPip] = useState<PiPDiagnostics | null>(null);
 
   useEffect(() => {
     if (!SuflerSpeech) return;
@@ -23,23 +29,36 @@ export function DebugStrip() {
     return () => subscription.remove();
   }, []);
 
-  if (!event) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.text}>отладка: ждём речь…</Text>
-      </View>
-    );
-  }
+  // Polled rather than pushed: the interesting question is "is the frame counter still moving",
+  // which only a periodic sample can answer. Once a second is enough and costs nothing.
+  useEffect(() => {
+    const pipModule = SuflerPiP;
+    if (!pipModule) return;
+    const tick = () => setPip(pipModule.getDiagnostics());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <View style={styles.container}>
       <Text style={styles.text} numberOfLines={1}>
-        {event.words.join(' ')}
+        {event ? event.words.join(' ') : 'отладка: ждём речь…'}
       </Text>
-      <Text style={styles.scores}>
-        t{event.cursor} · best {event.best.toFixed(2)} · run {event.runnerUp.toFixed(2)}
-        {event.moved ? ' · →' : ' · hold'}
-      </Text>
+      {event && (
+        <Text style={styles.scores}>
+          t{event.cursor} · best {event.best.toFixed(2)} · run {event.runnerUp.toFixed(2)}
+          {event.moved ? ' · →' : ' · hold'}
+        </Text>
+      )}
+      {pip && (
+        <Text style={styles.scores} numberOfLines={2}>
+          pip {pip.active ? 'on' : 'off'}/{pip.possible ? 'possible' : 'not-possible'} · frames{' '}
+          {pip.framesEnqueued} @{pip.clockHz}Hz · {pip.renderWidth}×{pip.renderHeight} ·{' '}
+          src {pip.sourceSize} {pip.sourceInWindow ? 'in-window' : 'DETACHED'}
+          {pip.rendererError ? ` · ${pip.rendererError}` : ''}
+        </Text>
+      )}
     </View>
   );
 }

@@ -62,6 +62,10 @@ public class SuflerPiPModule: Module {
       SuflerSession.shared.pip.isPossible
     }
 
+    Function("getDiagnostics") { () -> [String: Any] in
+      SuflerSession.shared.pip.diagnostics
+    }
+
     Function("setCursor") { (tokenIndex: Int) in
       SuflerSession.shared.setCursor(tokenIndex)
     }

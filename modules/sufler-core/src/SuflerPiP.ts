@@ -1,6 +1,12 @@
 import { requireOptionalNativeModule, type NativeModule } from 'expo';
 
-import type { PiPPlaybackToggled, PiPState, PiPStyle, SuflerError } from './types';
+import type {
+  PiPDiagnostics,
+  PiPPlaybackToggled,
+  PiPState,
+  PiPStyle,
+  SuflerError,
+} from './types';
 
 type SuflerPiPEvents = {
   onPiPStateChanged: (event: PiPState) => void;
@@ -20,6 +26,12 @@ declare class SuflerPiPNativeModule extends NativeModule<SuflerPiPEvents> {
   isActive(): boolean;
   /** False until the preview layer has been in a window for a run loop turn or two. */
   isPossible(): boolean;
+  /**
+   * Live state of the overlay pipeline. PiP fails silently — an empty floating window and no
+   * error anywhere — and none of it exists in the Simulator, so this is the only practical way to
+   * see whether frames are actually being produced on a device.
+   */
+  getDiagnostics(): PiPDiagnostics;
   setCursor(tokenIndex: number): void;
 }
 

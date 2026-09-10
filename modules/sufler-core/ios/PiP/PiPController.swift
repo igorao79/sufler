@@ -116,6 +116,21 @@ final class PiPController: NSObject {
 
   var isPossible: Bool { controller?.isPictureInPicturePossible ?? false }
 
+  /// Picture in Picture fails silently far more often than it fails loudly — an empty floating
+  /// window with no error raised anywhere. This is what makes that debuggable from inside the app,
+  /// which matters because the whole feature is unavailable in the Simulator.
+  var diagnostics: [String: Any] {
+    var result = pump.diagnostics
+    result["supported"] = AVPictureInPictureController.isPictureInPictureSupported()
+    result["possible"] = controller?.isPictureInPicturePossible ?? false
+    result["active"] = isActive
+    result["hasController"] = controller != nil
+    result["sourceInWindow"] = sourceView?.window != nil
+    result["sourceSize"] = "\(Int(sourceView?.bounds.width ?? 0))x\(Int(sourceView?.bounds.height ?? 0))"
+    result["following"] = SuflerSession.shared.isFollowing
+    return result
+  }
+
   // MARK: - Content
 
   func markDirty(force: Bool = false) {
@@ -182,12 +197,14 @@ final class PiPController: NSObject {
 extension PiPController: AVPictureInPictureControllerDelegate {
 
   func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
+    NSLog("[Sufler] PiP started")
     isActive = true
     pump.markDirty(force: true)
     module?.emitState(active: true, possible: controller.isPictureInPicturePossible)
   }
 
   func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
+    NSLog("[Sufler] PiP stopped")
     isActive = false
     module?.emitState(active: false, possible: controller.isPictureInPicturePossible)
   }
@@ -196,6 +213,7 @@ extension PiPController: AVPictureInPictureControllerDelegate {
     _ controller: AVPictureInPictureController,
     failedToStartPictureInPictureWithError error: Error
   ) {
+    NSLog("[Sufler] PiP failed to start: %@", error.localizedDescription)
     isActive = false
     module?.emitError(code: "pip_start_failed", message: error.localizedDescription)
   }
