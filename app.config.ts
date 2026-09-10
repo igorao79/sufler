@@ -2,6 +2,7 @@ import type { ExpoConfig } from 'expo/config';
 
 const APP_GROUP = 'group.com.igorao.sufler';
 const BUNDLE_ID = 'com.igorao.sufler';
+const APPLE_TEAM_ID = 'GJ2YHZYUJ2';
 
 const config: ExpoConfig = {
   name: 'Sufler',
@@ -13,6 +14,10 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'dark',
   ios: {
     bundleIdentifier: BUNDLE_ID,
+    // Prebuild writes this into DEVELOPMENT_TEAM for every native target, so neither the app nor
+    // the share extension needs the team set by hand in Xcode. Not a secret — a Team ID ships
+    // inside every provisioning profile.
+    appleTeamId: APPLE_TEAM_ID,
     supportsTablet: false,
     infoPlist: {
       // Required by AVPictureInPictureController: without it the PiP window will not open when the

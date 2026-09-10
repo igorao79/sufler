@@ -59,6 +59,9 @@ const withExtensionTarget: ConfigPlugin = (config) =>
   withXcodeProject(config, (config) => {
     const project = config.modResults;
     const bundleIdentifier = `${config.ios?.bundleIdentifier ?? 'com.igorao.sufler'}.share`;
+    // Set explicitly rather than relying on Expo's own `withDevelopmentTeam`: that mod may run
+    // before this one, and a target created afterwards would then be left unsigned.
+    const appleTeamId = config.ios?.appleTeamId;
 
     // Prebuild can run more than once against the same project; adding the target twice produces
     // a project that fails to open.
@@ -104,6 +107,7 @@ const withExtensionTarget: ConfigPlugin = (config) =>
       settings.SWIFT_VERSION = '5.9';
       settings.TARGETED_DEVICE_FAMILY = '"1"';
       settings.CODE_SIGN_STYLE = 'Automatic';
+      if (appleTeamId) settings.DEVELOPMENT_TEAM = appleTeamId;
       settings.SKIP_INSTALL = 'YES';
       settings.CLANG_ENABLE_MODULES = 'YES';
       // The extension is embedded in the app bundle; without this the linker looks in the wrong
