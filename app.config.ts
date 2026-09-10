@@ -20,7 +20,7 @@ const config: ExpoConfig = {
     appleTeamId: APPLE_TEAM_ID,
     // App Store Connect rejects a re-upload of a build number it has already seen, so this has
     // to be bumped for every upload of the same `version`.
-    buildNumber: '3',
+    buildNumber: '4',
     supportsTablet: false,
     infoPlist: {
       // Required by AVPictureInPictureController: without it the PiP window will not open when the

@@ -43,6 +43,9 @@ final class SuflerSession {
 
   private(set) var script: ScriptModel = .empty
   private(set) var isFollowing = false
+  /// `startFollowing` suspends while the recogniser settles, so a second Start tapped during that
+  /// window would otherwise run the whole setup twice.
+  private var isStarting = false
 
   /// Rendered into the PiP frame in place of the script when something has gone wrong that the
   /// user needs to know about — most often another app taking the microphone.
@@ -123,8 +126,15 @@ final class SuflerSession {
 
   // MARK: - Following
 
-  func startFollowing(_ options: SpeechStartOptions) throws {
-    guard !isFollowing else { return }
+  /// Main-actor isolated rather than dispatched with `runOnQueue(.main)`: the async overload of
+  /// `AsyncFunction` returns a definition that has no `runOnQueue`, and everything this touches —
+  /// the audio engine, the render pump, the JS bridge — is main-thread state anyway.
+  @MainActor
+  func startFollowing(_ options: SpeechStartOptions) async throws {
+    guard !isFollowing, !isStarting else { return }
+    isStarting = true
+    defer { isStarting = false }
+
     guard !script.isEmpty else {
       throw NSError(domain: "sufler.session", code: 1, userInfo: [
         NSLocalizedDescriptionKey: "Load a script before starting."
@@ -146,6 +156,25 @@ final class SuflerSession {
     backend.onError = { [weak self] error in
       self?.speechModule?.emitError(code: "speech_error", message: error.localizedDescription)
     }
+    backend.onFatalError = { [weak self] error in
+      DispatchQueue.main.async {
+        guard let self else { return }
+        // Stop for real. Leaving `isFollowing` true would keep the microphone open and the status
+        // line saying "listening" while the recogniser has already given up.
+        self.stopFollowing()
+        self.pipOverlayMessage = "⏸ " + error.localizedDescription
+        self.pip.markDirty(force: true)
+        self.speechModule?.emitError(
+          code: "speech_unavailable", message: error.localizedDescription)
+      }
+    }
+    backend.onFellBackToServer = { [weak self] in
+      DispatchQueue.main.async {
+        self?.speechModule?.emitError(
+          code: "on_device_unavailable",
+          message: "Модель распознавания на устройстве не установлена для этого языка. Переключился на облачное — аудио отправляется на серверы Apple. Скачать модель можно в Настройках iOS → Основные → Клавиатура → Диктовка.")
+      }
+    }
     backend.onWantsContext = { [weak self] in
       guard let self else { return [] }
       return self.script.distinctiveWords(
@@ -156,9 +185,9 @@ final class SuflerSession {
       around: positionBus.position.tokenIndex, lookahead: 400, limit: 100)
 
     do {
-      try backend.start(locale: options.locale,
-                        preferOnDevice: options.preferOnDevice,
-                        contextualStrings: context)
+      try await backend.start(locale: options.locale,
+                              preferOnDevice: options.preferOnDevice,
+                              contextualStrings: context)
       mic.onBuffer = { [weak backend] buffer in backend?.append(buffer) }
       mic.onLevel = { [weak self] level in self?.noteLevel(level) }
       try mic.start()
@@ -203,14 +232,16 @@ final class SuflerSession {
   /// Entry point for the PiP window's play button, where there is no JS in the loop and no user
   /// interface to report an error into — so failures go out as an event and into the frame itself.
   func resumeFollowingFromPiP() {
-    do {
-      let options = startOptions
-      options.startTokenIndex = -1  // keep the cursor where it is
-      try startFollowing(options)
-    } catch {
-      pipOverlayMessage = error.localizedDescription
-      pip.markDirty(force: true)
-      speechModule?.emitError(code: "resume_failed", message: error.localizedDescription)
+    Task { @MainActor in
+      do {
+        let options = self.startOptions
+        options.startTokenIndex = -1  // keep the cursor where it is
+        try await self.startFollowing(options)
+      } catch {
+        self.pipOverlayMessage = error.localizedDescription
+        self.pip.markDirty(force: true)
+        self.speechModule?.emitError(code: "resume_failed", message: error.localizedDescription)
+      }
     }
   }
 

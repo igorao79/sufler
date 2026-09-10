@@ -74,9 +74,9 @@ public class SuflerSpeechModule: Module {
       SFSpeechBackend.supportsOnDevice(locale: locale)
     }
 
-    AsyncFunction("start") { (options: SpeechStartOptions) throws in
-      try SuflerSession.shared.startFollowing(options)
-    }.runOnQueue(.main)
+    AsyncFunction("start") { (options: SpeechStartOptions) in
+      try await SuflerSession.shared.startFollowing(options)
+    }
 
     AsyncFunction("stop") {
       SuflerSession.shared.stopFollowing()
