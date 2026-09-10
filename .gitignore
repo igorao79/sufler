@@ -36,6 +36,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
+# generated native folders — regenerate with `npx expo prebuild -p ios --clean`
 /ios
 /android
