@@ -62,6 +62,10 @@ const withExtensionTarget: ConfigPlugin = (config) =>
     // Set explicitly rather than relying on Expo's own `withDevelopmentTeam`: that mod may run
     // before this one, and a target created afterwards would then be left unsigned.
     const appleTeamId = config.ios?.appleTeamId;
+    // The extension's Info.plist reads these through $(MARKETING_VERSION) and
+    // $(CURRENT_PROJECT_VERSION); App Store validation fails if they drift from the app's.
+    const marketingVersion = config.version ?? '1.0.0';
+    const buildNumber = config.ios?.buildNumber ?? '1';
 
     // Prebuild can run more than once against the same project; adding the target twice produces
     // a project that fails to open.
@@ -108,6 +112,8 @@ const withExtensionTarget: ConfigPlugin = (config) =>
       settings.TARGETED_DEVICE_FAMILY = '"1"';
       settings.CODE_SIGN_STYLE = 'Automatic';
       if (appleTeamId) settings.DEVELOPMENT_TEAM = appleTeamId;
+      settings.MARKETING_VERSION = marketingVersion;
+      settings.CURRENT_PROJECT_VERSION = buildNumber;
       settings.SKIP_INSTALL = 'YES';
       settings.CLANG_ENABLE_MODULES = 'YES';
       // The extension is embedded in the app bundle; without this the linker looks in the wrong

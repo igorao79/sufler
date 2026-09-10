@@ -18,6 +18,9 @@ const config: ExpoConfig = {
     // the share extension needs the team set by hand in Xcode. Not a secret — a Team ID ships
     // inside every provisioning profile.
     appleTeamId: APPLE_TEAM_ID,
+    // App Store Connect rejects a re-upload of a build number it has already seen, so this has
+    // to be bumped for every upload of the same `version`.
+    buildNumber: '2',
     supportsTablet: false,
     infoPlist: {
       // Required by AVPictureInPictureController: without it the PiP window will not open when the
@@ -28,6 +31,12 @@ const config: ExpoConfig = {
         'Sufler слушает вашу речь, чтобы прокручивать текст в такт тому, что вы говорите.',
       NSSpeechRecognitionUsageDescription:
         'Распознавание речи нужно, чтобы находить ваше место в тексте и вести суфлёр за вами.',
+      // Required by App Store validation, not by the app: react-native-reanimated links
+      // CoreMotion for its useAnimatedSensor API, and Apple's check looks at what the binary
+      // references rather than at what it calls. Sufler never requests motion data, so this
+      // dialog is never shown — the string says so rather than inventing a purpose.
+      NSMotionUsageDescription:
+        'Sufler не использует датчики движения и не запрашивает к ним доступ.',
       ITSAppUsesNonExemptEncryption: false,
     },
     entitlements: {
